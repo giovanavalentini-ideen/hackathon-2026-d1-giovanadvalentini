@@ -6,9 +6,7 @@ Hackathon Ideen 2026 · Desafio 1 · Motor de regras plataformizado · Individua
 
 ## 1. O problema
 
-<!-- Uma frase. -->
-
-_A preencher._
+Classificar duplicatas escriturais com regras de negócio espalhadas em if/else não escala nem se explica, e cada mudança de regra obriga a mexer no código.
 
 ## 2. O que eu fiz
 
