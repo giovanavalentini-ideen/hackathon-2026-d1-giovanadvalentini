@@ -2,11 +2,14 @@
 
 As regras vêm de um arquivo JSON; este módulo não conhece nenhuma regra de domínio.
 """
+import argparse
 import datetime
 import json
 import math
 import operator
+import os
 import re
+import sys
 
 AUSENTE = object()
 
@@ -183,3 +186,60 @@ def carregar_regras(caminho):
             raise ErroRegras(f"regra precisa de 'codigo' e 'quando': {r!r}")
         regras.append((r["codigo"], compilar_condicao(r["quando"])))
     return regras, doc.get("sem_regra", "SEM_REGRA")
+
+
+def classificar(linhas, regras, sem_regra, avisar):
+    """Devolve as linhas de saída 'id:<id> - regra: <código>' na ordem da entrada."""
+    saida = []
+    for n, texto in enumerate(linhas, 1):
+        if not texto.strip():
+            continue
+        try:
+            doc = json.loads(texto)
+        except ValueError:
+            avisar(f"linha {n}: JSON inválido")
+            continue
+        if type(doc) is not dict:
+            avisar(f"linha {n}: não é um objeto JSON")
+            continue
+        ident = doc.get("id")
+        if ident is None:
+            avisar(f"linha {n}: sem id")
+            continue
+        codigo = sem_regra
+        for cod, teste in regras:
+            if teste(doc):
+                codigo = cod
+                break
+        saida.append(f"id:{ident} - regra: {codigo}")
+    return saida
+
+
+REGRAS_PADRAO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "regras", "duplicatas.json")
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Classifica duplicatas pela primeira regra satisfeita.")
+    parser.add_argument("--entrada", required=True, help="arquivo JSON Lines, uma duplicata por linha")
+    parser.add_argument("--regras", default=REGRAS_PADRAO, help="arquivo de regras (padrão: regras/duplicatas.json)")
+    args = parser.parse_args(argv)
+    sys.stdout.reconfigure(encoding="utf-8", newline="\n")
+    sys.stderr.reconfigure(encoding="utf-8", newline="\n")
+
+    def avisar(msg):
+        print(msg, file=sys.stderr)
+
+    try:
+        regras, sem_regra = carregar_regras(args.regras)
+    except ErroRegras as e:
+        avisar(f"erro nas regras: {e}")
+        return 2
+    with open(args.entrada, encoding="utf-8-sig") as f:
+        saida = classificar(f, regras, sem_regra, avisar)
+    if saida:
+        sys.stdout.write("\n".join(saida) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
