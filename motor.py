@@ -3,7 +3,9 @@
 As regras vêm de um arquivo JSON; este módulo não conhece nenhuma regra de domínio.
 """
 import datetime
+import json
 import math
+import operator
 import re
 
 AUSENTE = object()
@@ -50,3 +52,134 @@ VALIDADORES = {"numero": _numero, "texto": _texto, "data": _data, "booleano": _b
 
 def valido(valor, tipo):
     return VALIDADORES[tipo](valor)
+
+
+class ErroRegras(Exception):
+    pass
+
+
+def _em(valor, opcoes):
+    return valor in opcoes
+
+
+def _comeca_com(valor, prefixo):
+    return valor.startswith(prefixo)
+
+
+# operador -> (função de comparação, tipos aceitos)
+OPERADORES = {
+    "igual": (operator.eq, {"numero", "texto", "data", "booleano"}),
+    "diferente": (operator.ne, {"numero", "texto", "data", "booleano"}),
+    "menor": (operator.lt, {"numero", "data"}),
+    "menor_igual": (operator.le, {"numero", "data"}),
+    "maior": (operator.gt, {"numero", "data"}),
+    "maior_igual": (operator.ge, {"numero", "data"}),
+    "em": (_em, {"texto"}),
+    "comeca_com": (_comeca_com, {"texto"}),
+}
+
+
+def _caminho(cond):
+    campo = cond.get("campo")
+    if type(campo) is not str or not campo:
+        raise ErroRegras(f"condição sem 'campo': {cond}")
+    return tuple(campo.split("."))
+
+
+def _vazio(cond):
+    caminho = _caminho(cond)
+
+    def teste(doc):
+        v = resolver(doc, caminho)
+        return v is AUSENTE or (type(v) is str and v == "")
+    return teste
+
+
+def _comparacao(cond):
+    caminho = _caminho(cond)
+    op, tipo = cond.get("op"), cond.get("tipo")
+    if tipo not in VALIDADORES:
+        raise ErroRegras(f"tipo desconhecido {tipo!r}: {cond}")
+    if op not in OPERADORES:
+        raise ErroRegras(f"operador desconhecido {op!r}: {cond}")
+    compara, tipos = OPERADORES[op]
+    if tipo not in tipos:
+        raise ErroRegras(f"operador {op!r} não aceita tipo {tipo!r}: {cond}")
+    eh = VALIDADORES[tipo]
+
+    if "outro_campo" in cond:
+        if op == "em":
+            raise ErroRegras(f"'em' exige 'valor' com lista: {cond}")
+        outro = _caminho({"campo": cond["outro_campo"]})
+
+        def teste(doc):
+            a = resolver(doc, caminho)
+            if not eh(a):
+                return False
+            b = resolver(doc, outro)
+            return eh(b) and compara(a, b)
+        return teste
+
+    if "valor" not in cond:
+        raise ErroRegras(f"condição sem 'valor' nem 'outro_campo': {cond}")
+    constante = cond["valor"]
+    if op == "em":
+        if type(constante) is not list or not constante or not all(eh(x) for x in constante):
+            raise ErroRegras(f"'em' exige lista não vazia de {tipo}: {cond}")
+        constante = frozenset(constante)
+    elif not eh(constante):
+        raise ErroRegras(f"'valor' não é do tipo {tipo}: {cond}")
+
+    def teste(doc):
+        a = resolver(doc, caminho)
+        return eh(a) and compara(a, constante)
+    return teste
+
+
+def _combinacao(chave, cond):
+    partes = cond[chave]
+    if type(partes) is not list or not partes:
+        raise ErroRegras(f"'{chave}' exige lista não vazia: {cond}")
+    testes = [compilar_condicao(p) for p in partes]
+    if chave == "e":
+        def teste(doc):
+            for t in testes:
+                if not t(doc):
+                    return False
+            return True
+    else:
+        def teste(doc):
+            for t in testes:
+                if t(doc):
+                    return True
+            return False
+    return teste
+
+
+def compilar_condicao(cond):
+    """Transforma uma condição do arquivo de regras numa função doc -> bool."""
+    if type(cond) is not dict:
+        raise ErroRegras(f"condição não é objeto: {cond!r}")
+    for chave in ("e", "ou"):
+        if chave in cond:
+            return _combinacao(chave, cond)
+    if cond.get("op") == "vazio":
+        return _vazio(cond)
+    return _comparacao(cond)
+
+
+def carregar_regras(caminho):
+    """Lê o arquivo de regras e devolve ([(codigo, teste), ...] em ordem, texto de sem_regra)."""
+    try:
+        with open(caminho, encoding="utf-8") as f:
+            doc = json.load(f)
+    except (OSError, ValueError) as e:
+        raise ErroRegras(f"não foi possível ler {caminho}: {e}") from e
+    if type(doc) is not dict or type(doc.get("regras")) is not list:
+        raise ErroRegras("o arquivo de regras precisa ter a lista 'regras'")
+    regras = []
+    for r in doc["regras"]:
+        if type(r) is not dict or type(r.get("codigo")) is not str or "quando" not in r:
+            raise ErroRegras(f"regra precisa de 'codigo' e 'quando': {r!r}")
+        regras.append((r["codigo"], compilar_condicao(r["quando"])))
+    return regras, doc.get("sem_regra", "SEM_REGRA")
