@@ -1,0 +1,11 @@
+# Máquina: Intel Core i5-10210U @ 1.60GHz (8 threads), 15,8 GB RAM, Windows 11 Pro 10.0.26200
+# Docker Desktop 29.6.2 (WSL2), imagem motor-go (scratch + binário Go estático, 3,3 MB, usuário 65534), --cpus=1
+# Comando: python kit/medir.py --set grande --cmd "docker run --rm --cpus=1 -v {dir}:/dados motor-go --entrada /dados/{arquivo}"
+# Data: 25/10/2026
+
+casos:            200000
+acertos:          200000 (100.00%)
+ids ausentes:     0
+linhas inválidas: 0
+tempos (s):       2.738, 2.647, 2.790
+mediana (s):      2.738
