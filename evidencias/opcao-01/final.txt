@@ -1,0 +1,23 @@
+# Opção 1, medição final da main (fb3e83c), clonada do GitHub numa pasta limpa e imagem construída com --no-cache
+# Máquina: Intel Core i5-10210U @ 1.60GHz (8 threads), 15,8 GB RAM, Windows 11 Pro 10.0.26200
+# Docker Desktop 29.6.2 (WSL2), imagem python:3.13-slim + orjson 3.11.9, --cpus=1
+# Carga de fundo antes da medição: 19 a 30% de CPU, sem outros containers nem compilações
+# Data: 25/10/2026
+
+== pequeno
+# Comando: python kit/medir.py --set pequeno --repeticoes 5 --cmd "docker run --rm --cpus=1 -v {dir}:/dados motor-main --entrada /dados/{arquivo}"
+casos:            100
+acertos:          100 (100.00%)
+ids ausentes:     0
+linhas inválidas: 0
+tempos (s):       1.013, 0.846, 0.880, 0.892, 0.848
+mediana (s):      0.880
+
+== grande
+# Comando: python kit/medir.py --set grande --repeticoes 5 --cmd "docker run --rm --cpus=1 -v {dir}:/dados motor-main --entrada /dados/{arquivo}"
+casos:            200000
+acertos:          200000 (100.00%)
+ids ausentes:     0
+linhas inválidas: 0
+tempos (s):       4.966, 4.782, 4.459, 4.491, 4.536
+mediana (s):      4.536

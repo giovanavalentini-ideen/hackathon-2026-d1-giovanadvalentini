@@ -85,12 +85,12 @@ python -m unittest discover -s tests
 
 | Conjunto | Casos | Acertos | Mediana (s) |
 |---|---|---|---|
-| Pequeno | 100 | 100% | 1,50 |
-| Grande | 200.000 | 100% | 5,8 a 9,8 |
+| Pequeno | 100 | 100% | 0,88 |
+| Grande | 200.000 | 100% | 4,54 |
 
-Windows 11, Docker Desktop (WSL2), `--cpus=1`. Arquivos em `evidencias/opcao-01/`.
+Windows 11, Docker Desktop (WSL2), `--cpus=1`, 5 execuções, imagem construída do zero a partir da `main`. Arquivo em `evidencias/opcao-01/final.txt`.
 
-A máquina estava carregada durante a medição; na mesma janela, a versão anterior marcou 25s. No Docker Desktop do Windows, ler a entrada pela pasta montada custa cerca de 2,6s e subir o container cerca de 1s.
+A versão anterior do motor, em Python com `json` padrão, marcou cerca de 16s nesta mesma máquina. No Docker Desktop do Windows, ler a entrada pela pasta montada custa cerca de 2,6s e subir o container cerca de 1s.
 
 **Casos de borda:** a massa do kit não traz dados sujos. Os testes cobrem a seção "Semântica" do enunciado: número como texto, booleano como `"false"`, data inválida, CFOP numérico, `diferente` com campo ausente, `vazio` com `""` e limites de `≥` e `>`.
 
