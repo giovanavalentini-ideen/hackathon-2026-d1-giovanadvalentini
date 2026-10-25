@@ -1,0 +1,19 @@
+# Opção 1, branch opcao-01. Mesma máquina, imagem e janela de medição de grande.txt.
+# Comando: python kit/medir.py --set pequeno --repeticoes 5 --cmd "docker run --rm --cpus=1 -v {dir}:/dados <imagem> --entrada /dados/{arquivo}"
+# Data: 25/10/2026
+
+== opcao-01
+casos:            100
+acertos:          100 (100.00%)
+ids ausentes:     0
+linhas inválidas: 0
+tempos (s):       1.261, 1.907, 1.227, 1.495, 1.534
+mediana (s):      1.495
+
+== base feat/motor 2c77384
+casos:            100
+acertos:          100 (100.00%)
+ids ausentes:     0
+linhas inválidas: 0
+tempos (s):       1.789, 1.714, 1.722, 1.690, 1.612
+mediana (s):      1.714

@@ -74,6 +74,43 @@ class Cli(unittest.TestCase):
         self.assertEqual(p.stdout, b"")
         self.assertIn(b"parece", p.stderr)
 
+    def test_inteiro_acima_de_64_bits_sai_exato(self):
+        # O orjson devolveria 1.8446744073709552e+19; o motor relê a linha com json.
+        p = self.rodar('{"id": 18446744073709551616, "status": "CANCELADA"}\n')
+        self.assertEqual(self.saida(p), ["id:18446744073709551616 - regra: R01"])
+
+    def test_valores_enormes_que_so_diferem_no_fim(self):
+        # pago < valor só é verdade com inteiros exatos; em float os dois são iguais.
+        doc = ('{"id": 1, "status": "ATIVA", "data_vencimento": "2026-01-01", "financeiro": '
+               '{"valor": 18446744073709551617, "valor_pago": 18446744073709551616}}\n')
+        p = self.rodar(doc)
+        self.assertEqual(self.saida(p), ["id:1 - regra: R05"])
+
+    def test_nan_infinity_e_surrogate_nao_somem(self):
+        p = self.rodar('{"id": 1, "financeiro": {"valor": NaN}}\n'
+                       '{"id": 2, "financeiro": {"valor": Infinity}}\n'
+                       '{"id": 3, "financeiro": {"valor": 1e400}}\n'
+                       '{"id": 4, "obs": "\\ud800", "status": "LIQUIDADA"}\n')
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertEqual(self.saida(p), ["id:1 - regra: SEM_REGRA", "id:2 - regra: SEM_REGRA",
+                                         "id:3 - regra: SEM_REGRA", "id:4 - regra: R01"])
+
+    def test_inteiro_maior_que_um_double_e_numero(self):
+        # 10**400 não cabe num float; antes, math.isfinite derrubava o motor inteiro.
+        p = self.rodar('{"id": 1, "status": "ATIVA", "financeiro": {"valor": 1' + "0" * 400 + '}}\n')
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertEqual(self.saida(p), ["id:1 - regra: R07"])
+
+    def test_utf8_invalido_e_aninhamento_fundo_nao_param(self):
+        p = self.rodar(b'{"id": 1, "x": "\xff"}\n' + b"[" * 5000 + b"]" * 5000 + b"\n"
+                       + linha(CANCELADA).encode("utf-8") + b"\n")
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertEqual(self.saida(p), ["id:2 - regra: R01"])
+
+    def test_cr_sozinho_separa_linhas(self):
+        p = self.rodar(linha(ATIVA) + "\r" + linha(CANCELADA) + "\r")
+        self.assertEqual(self.saida(p), ["id:1 - regra: SEM_REGRA", "id:2 - regra: R01"])
+
     def test_roda_de_outra_pasta(self):
         p = self.rodar(linha(CANCELADA) + "\n")
         self.assertEqual(p.returncode, 0, p.stderr)

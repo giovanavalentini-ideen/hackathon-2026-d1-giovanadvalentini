@@ -1,0 +1,52 @@
+# Opção 1 (orjson + leitura em bloco + regras geradas como função Python), branch opcao-01
+# Máquina: Intel Core i5-10210U @ 1.60GHz (8 threads), 15,8 GB RAM, Windows 11 Pro 10.0.26200
+# Docker Desktop 29.6.2 (WSL2), imagem python:3.13-slim (Python 3.13.17) + orjson 3.11.9, --cpus=1
+# Comando: python kit/medir.py --set grande --repeticoes N --cmd "docker run --rm --cpus=1 -v {dir}:/dados <imagem> --entrada /dados/{arquivo}"
+# Data: 25/10/2026
+# ATENÇÃO: máquina carregada por outras sessões compilando ao mesmo tempo. A base, que marcou
+# 15,966s na evidência anterior, marcou ~25s nesta janela. Por isso base e opção 1 foram
+# medidas alternadas, na mesma janela; compare as duas entre si, não com a evidência antiga.
+
+== rodada 1: opcao-01 (5 repetições)
+casos:            200000
+acertos:          200000 (100.00%)
+ids ausentes:     0
+linhas inválidas: 0
+tempos (s):       9.819, 9.430, 9.874, 10.911, 9.552
+mediana (s):      9.819
+
+== rodada 2: base feat/motor 2c77384 (5 repetições)
+casos:            200000
+acertos:          200000 (100.00%)
+ids ausentes:     0
+linhas inválidas: 0
+tempos (s):       26.685, 23.029, 25.533, 24.916, 26.614
+mediana (s):      25.533
+
+== rodada 3: opcao-01 (5 repetições)
+casos:            200000
+acertos:          200000 (100.00%)
+ids ausentes:     0
+linhas inválidas: 0
+tempos (s):       5.255, 7.181, 7.106, 5.173, 5.836
+mediana (s):      5.836
+
+== rodada 4: base feat/motor 2c77384 (3 repetições)
+casos:            200000
+acertos:          200000 (100.00%)
+ids ausentes:     0
+linhas inválidas: 0
+tempos (s):       25.071, 23.252, 25.341
+mediana (s):      25.071
+
+== rodada 5: opcao-01 (3 repetições)
+casos:            200000
+acertos:          200000 (100.00%)
+ids ausentes:     0
+linhas inválidas: 0
+tempos (s):       6.514, 7.823, 9.262
+mediana (s):      7.823
+
+== decomposição dentro do container (--cpus=1, mesma janela), segundos
+opcao-01: import 0.140-0.274 | regras 0.009-0.032 | ler arquivo do volume 2.586-2.647 | parse+regras+saída 2.125-3.904
+base:     ler linha a linha do volume 5.766-6.786 | parse+regras+saída 5.274-5.897
