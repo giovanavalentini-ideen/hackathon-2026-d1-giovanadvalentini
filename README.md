@@ -2,61 +2,68 @@
 
 Hackathon Ideen 2026 · Desafio 1 · Motor de regras plataformizado · Individual
 
-> Status: em construção. Prazo: segunda, 26/10/2026, às 9h.
-
 ## 1. O problema
 
 Classificar duplicatas escriturais com regras de negócio espalhadas em if/else não escala nem se explica, e cada mudança de regra obriga a mexer no código.
 
 ## 2. O que eu fiz
 
-<!-- A solução e o fluxo. Alguém precisa entender o motor em 5 minutos. -->
-
-### Visão geral
-
-_A preencher._
+Um motor em Python (`motor.py`) que classifica cada duplicata pela primeira regra satisfeita. As regras ficam em `regras/duplicatas.json`; o motor não conhece nenhuma regra de domínio.
 
 ### Fluxo
 
-1. Lê as regras: _arquivo e formato a definir_.
-2. Lê a entrada (`entrada.jsonl`, uma duplicata por linha).
-3. Avalia as regras em ordem; a primeira satisfeita classifica.
-4. Escreve a saída no stdout: `id:1 - regra: R07`.
+1. **Regras:** lê o JSON de regras, valida e transforma tudo numa única função Python, compilada uma vez.
+2. **Entrada:** lê o arquivo inteiro de uma vez.
+3. **Leitura de cada linha:** o `orjson` converte o texto JSON da linha num objeto Python. Ele só lê; quem decide a regra é o passo seguinte.
+4. **Classificação:** a função gerada testa as regras em ordem; a primeira satisfeita classifica, nenhuma dá `SEM_REGRA`.
+5. **Saída:** `id:1 - regra: R07` no stdout.
 
 ### Formato das regras
 
-<!-- Onde ficam, como se escreve uma condição, como trocar ou reordenar sem mexer no motor. -->
+```json
+{
+  "codigo": "R06",
+  "categoria": "Garantia relevante",
+  "quando": { "e": [
+    { "campo": "financeiro.tipo_negociacao", "tipo": "texto", "op": "em", "valor": ["CSFD", "PENR"] },
+    { "campo": "financeiro.valor", "tipo": "numero", "op": "maior_igual", "valor": 100000 }
+  ] }
+}
+```
 
-_A preencher._
+- `tipo`: `numero`, `texto`, `data`, `booleano`. Valor de outro tipo torna a condição falsa.
+- `op`: `igual`, `diferente`, `menor`, `menor_igual`, `maior`, `maior_igual`, `em`, `comeca_com`, `vazio`.
+- `outro_campo` compara dois campos da duplicata; `e` / `ou` combinam condições.
+
+Trocar, reordenar ou acrescentar regra é só editar o JSON. Exemplo em `regras/exemplo_ordem_invertida.json`:
+
+```bash
+python motor.py --entrada entrada.jsonl --regras regras/exemplo_ordem_invertida.json
+```
 
 ### Estrutura do repositório
 
 | Caminho | O que é |
 |---|---|
-| _a definir_ | código do motor |
-| _a definir_ | regras traduzidas, fora do código |
-| `Dockerfile` | roda o motor com `--entrada <arquivo>` |
-| `evidencias/` | saída do `medir.py` nos dois conjuntos |
-| `docs/diario-ia.md` | registro de onde a IA errou, feito durante o trabalho |
+| `motor.py` | motor |
+| `regras/` | regras do desafio e exemplo de reordenação |
+| `Dockerfile` | imagem `python:3.13-slim` + `orjson` |
+| `tests/` | 63 testes automatizados |
+| `evidencias/opcao-01/` | saída do `medir.py` |
+| `docs/` | diário de uso da IA e relatório técnico |
 
-### Decisões e limites
-
-<!-- O que ficou de fora e por quê; o que o enunciado não especifica e como foi resolvido. -->
+### Decisões
 
 | Tema | Decisão |
 |---|---|
-| Servidor HTTP, interface de edição de regras, deploy | Fora do escopo, conforme o desafio |
-| _ex.: linha malformada na entrada_ | _a definir_ |
+| Linguagem | Python, por segurança de acerto. Uma versão em Go mais rápida existe na branch `opcao-02`, fora da entrega |
+| Leitura do JSON | `orjson`, por ser a etapa mais lenta; volta ao `json` padrão nas linhas que o `orjson` recusa ou em números acima de 64 bits |
+| Linha inválida ou sem `id` | ignorada com aviso no stderr; o resto segue |
+| Build | instala `orjson` do PyPI, precisa de rede |
 
 ## 3. Como reproduzir
 
-<!-- Passo a passo para outra pessoa rodar sem precisar de mim. Testar em máquina limpa. -->
-
-### Pré-requisitos
-
-_A preencher._
-
-### Rodar com Docker (como a banca)
+Pré-requisitos: Docker e Python 3.13.
 
 ```bash
 docker build -t motor .
@@ -66,47 +73,38 @@ docker build -t motor .
 docker run --rm --cpus=1 -v <pasta>:/dados motor --entrada /dados/entrada.jsonl > saida.txt
 ```
 
-### Medir contra o gabarito
-
 ```bash
-python medir.py --set pequeno --cmd "docker run --rm --cpus=1 -v {dir}:/dados motor --entrada /dados/{arquivo}"
+python kit/medir.py --set grande --cmd "docker run --rm --cpus=1 -v {dir}:/dados motor --entrada /dados/{arquivo}"
 ```
 
 ```bash
-python medir.py --set grande --cmd "docker run --rm --cpus=1 -v {dir}:/dados motor --entrada /dados/{arquivo}"
+python -m unittest discover -s tests
 ```
-
-### Testes
-
-_A preencher._
 
 ## 4. Evidências
 
-<!-- O que rodou e o resultado. Números copiados da saída real, com o arquivo em evidencias/. -->
+| Conjunto | Casos | Acertos | Mediana (s) |
+|---|---|---|---|
+| Pequeno | 100 | 100% | 1,50 |
+| Grande | 200.000 | 100% | 5,8 a 9,8 |
 
-| Conjunto | Casos | Acertos | Mediana (s) | Arquivo |
-|---|---|---|---|---|
-| Pequeno | 100 | _a medir_ | _a medir_ | `evidencias/` |
-| Grande | 200.000 | _a medir_ | _a medir_ | `evidencias/` |
+Windows 11, Docker Desktop (WSL2), `--cpus=1`. Arquivos em `evidencias/opcao-01/`.
 
-Máquina da medição: _a preencher_.
+A máquina estava carregada durante a medição; na mesma janela, a versão anterior marcou 25s. No Docker Desktop do Windows, ler a entrada pela pasta montada custa cerca de 2,6s e subir o container cerca de 1s.
 
-### Casos de borda
-
-<!-- A massa do kit não traz campo ausente, tipo errado nem data inválida. Os testes próprios cobrem a seção "Semântica" do enunciado. -->
-
-_A preencher._
+**Casos de borda:** a massa do kit não traz dados sujos. Os testes cobrem a seção "Semântica" do enunciado: número como texto, booleano como `"false"`, data inválida, CFOP numérico, `diferente` com campo ausente, `vazio` com `""` e limites de `≥` e `>`.
 
 ## 5. Onde a IA errou
 
-<!-- Erros concretos e como foram corrigidos. Detalhes em docs/diario-ia.md. -->
-
 | O que a IA fez | Por que estava errado | Como corrigi |
 |---|---|---|
-| _a preencher_ | | |
+| Disse que o `orjson` recusa inteiros acima de 64 bits | Ele aceita e arredonda sem erro, o que mudaria `id` e a R05 | Linhas com esses números são relidas com `json`; testes em `test_cli.py` |
+| Estimou 2,5 a 3s no Docker | Deixou de fora a leitura pela pasta montada e a subida do container | Medição por etapa dentro do container |
+
+Detalhes em `docs/diario-ia.md`.
 
 ## Bônus
 
 - [ ] A saída diz quais regras dispararam
 - [ ] Um segundo domínio, sem mudar código
-- [ ] Testes automatizados
+- [x] Testes automatizados
